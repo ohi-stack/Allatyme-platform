@@ -1,5 +1,7 @@
 const generationApiUrl = (process.env.GENERATION_API_URL || "http://localhost:4100").replace(/\/$/, "");
 const modelGatewayUrl = (process.env.MODEL_GATEWAY_URL || "http://localhost:4200").replace(/\/$/, "");
+const audioProcessingUrl = (process.env.AUDIO_PROCESSING_URL || "http://localhost:4300").replace(/\/$/, "");
+const mediaIngestionUrl = (process.env.MEDIA_INGESTION_URL || "http://localhost:4400").replace(/\/$/, "");
 const internalToken = process.env.INTERNAL_SERVICE_TOKEN || "";
 const pollMs = Number(process.env.WORKER_POLL_MS || 2000);
 const providerPollMs = Number(process.env.PROVIDER_POLL_MS || 3000);
@@ -12,11 +14,7 @@ function headers() {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: { ...headers(), ...(options.headers || {}) },
-  });
-
+  const response = await fetch(url, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
   if (response.status === 204) return null;
   const body = await response.json().catch(() => null);
   if (!response.ok) {
@@ -31,17 +29,11 @@ async function nextJob() {
 }
 
 async function recordProvider(jobId, dispatch) {
-  return requestJson(`${generationApiUrl}/v1/internal/jobs/${jobId}/provider`, {
-    method: "POST",
-    body: JSON.stringify(dispatch),
-  });
+  return requestJson(`${generationApiUrl}/v1/internal/jobs/${jobId}/provider`, { method: "POST", body: JSON.stringify(dispatch) });
 }
 
 async function completeJob(jobId, result) {
-  return requestJson(`${generationApiUrl}/v1/internal/jobs/${jobId}/complete`, {
-    method: "POST",
-    body: JSON.stringify(result),
-  });
+  return requestJson(`${generationApiUrl}/v1/internal/jobs/${jobId}/complete`, { method: "POST", body: JSON.stringify(result) });
 }
 
 async function failJob(jobId, error) {
@@ -52,21 +44,62 @@ async function failJob(jobId, error) {
 }
 
 async function dispatch(request) {
-  return requestJson(`${modelGatewayUrl}/v1/inference`, {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
+  return requestJson(`${modelGatewayUrl}/v1/inference`, { method: "POST", body: JSON.stringify(request) });
 }
 
 async function queryProvider(providerTaskId) {
-  return requestJson(`${modelGatewayUrl}/v1/inference/status`, {
-    method: "POST",
-    body: JSON.stringify({ providerTaskId }),
-  });
+  return requestJson(`${modelGatewayUrl}/v1/inference/status`, { method: "POST", body: JSON.stringify({ providerTaskId }) });
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+function extensionFor(format) {
+  return ({ wav: "wav", flac: "flac", mp3: "mp3", opus: "opus", aac: "m4a" })[format] || "wav";
+}
+
+async function finalizeArtifact(job, artifact, index) {
+  if (!artifact?.uri) throw new Error(`Generated artifact ${index} has no source URI.`);
+  const outputFormat = job.request.outputFormat || "wav";
+  const tuningHz = Number(job.request.masterTuningHz || 432);
+
+  const processed = await requestJson(`${audioProcessingUrl}/v1/process`, {
+    method: "POST",
+    body: JSON.stringify({
+      sourceUrl: artifact.uri,
+      tuningHz,
+      outputFormat,
+      jobId: job.id,
+      artifactId: artifact.id || `${job.id}:${index}`,
+    }),
+  });
+
+  const objectKey = `generations/${job.request.userId}/${job.id}/${String(index + 1).padStart(2, "0")}.${extensionFor(outputFormat)}`;
+  const stored = await requestJson(`${mediaIngestionUrl}/v1/ingest`, {
+    method: "POST",
+    body: JSON.stringify({
+      sourceUrl: processed.url,
+      objectKey,
+      contentType: processed.mimeType,
+      metadata: { jobId: job.id, artifactId: artifact.id || `${job.id}:${index}` },
+    }),
+  });
+
+  return {
+    ...artifact,
+    uri: stored.uri,
+    deliveryUrl: stored.publicUrl || null,
+    mimeType: stored.contentType,
+    storageProvider: stored.storageProvider,
+    objectKey: stored.objectKey,
+    checksumSha256: stored.checksumSha256,
+    metadata: {
+      ...(artifact.metadata || {}),
+      providerUri: artifact.uri,
+      tuningHz,
+      processing: processed.processing,
+      storageBytes: stored.bytes,
+    },
+  };
 }
 
 async function processJob(job) {
@@ -79,22 +112,23 @@ async function processJob(job) {
     while (Date.now() - started < providerTimeoutMs) {
       const result = await queryProvider(dispatchResult.providerTaskId);
       if (result.status === "succeeded") {
+        const finalized = [];
+        for (const [index, artifact] of (result.artifacts || []).entries()) {
+          finalized.push(await finalizeArtifact(job, artifact, index));
+        }
+        if (!finalized.length) throw new Error("Provider succeeded but returned no audio artifacts.");
+
         await completeJob(job.id, {
           provider: result.provider || dispatchResult.provider,
           model: dispatchResult.model,
-          artifacts: result.artifacts || [],
+          artifacts: finalized,
         });
-        console.log(`[worker] completed ${job.id} with ${(result.artifacts || []).length} artifact(s)`);
+        console.log(`[worker] completed ${job.id} with ${finalized.length} stored artifact(s)`);
         return;
       }
-
-      if (result.status === "failed") {
-        throw new Error(result.error?.message || "Provider generation failed.");
-      }
-
+      if (result.status === "failed") throw new Error(result.error?.message || "Provider generation failed.");
       await sleep(providerPollMs);
     }
-
     throw new Error(`Provider timed out after ${providerTimeoutMs}ms.`);
   } catch (error) {
     console.error(`[worker] failed ${job.id}:`, error);
@@ -103,15 +137,11 @@ async function processJob(job) {
 }
 
 async function main() {
-  console.log(`[worker] ALLATYME generation worker online; queue=${generationApiUrl}; gateway=${modelGatewayUrl}`);
-
+  console.log(`[worker] ALLATYME worker online; queue=${generationApiUrl}; gateway=${modelGatewayUrl}`);
   for (;;) {
     try {
       const job = await nextJob();
-      if (!job) {
-        await sleep(pollMs);
-        continue;
-      }
+      if (!job) { await sleep(pollMs); continue; }
       await processJob(job);
     } catch (error) {
       console.error("[worker] loop error:", error);

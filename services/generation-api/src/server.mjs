@@ -1,10 +1,21 @@
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import {
+  initStore,
+  closeStore,
+  healthSnapshot,
+  createJob,
+  getJob,
+  listJobs,
+  claimNextJob,
+  setProvider,
+  completeJob,
+  failJob,
+} from "./store.mjs";
 
 const port = Number(process.env.PORT || 4100);
 const internalToken = process.env.INTERNAL_SERVICE_TOKEN || "";
 const allowedOrigin = process.env.WEB_BASE_URL || "http://localhost:3000";
-const jobs = new Map();
 
 function headers(extra = {}) {
   return {
@@ -43,16 +54,6 @@ function validateRights(body) {
   return null;
 }
 
-function serialize(job) {
-  return JSON.parse(JSON.stringify(job));
-}
-
-function updateJob(job, patch) {
-  Object.assign(job, patch, { updatedAt: new Date().toISOString() });
-  jobs.set(job.id, job);
-  return job;
-}
-
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, headers({ "content-type": "text/plain" }));
@@ -62,29 +63,21 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
   if (req.method === "GET" && url.pathname === "/health") {
-    return json(res, 200, {
-      service: "generation-api",
-      status: "ok",
-      queue: {
-        total: jobs.size,
-        queued: [...jobs.values()].filter((job) => job.status === "queued").length,
-        running: [...jobs.values()].filter((job) => job.status === "running").length,
-      },
-      persistence: "memory-v1",
-    });
+    try {
+      const state = await healthSnapshot();
+      return json(res, 200, { service: "generation-api", status: "ok", persistence: "postgres+redis", ...state });
+    } catch (error) {
+      return json(res, 503, { service: "generation-api", status: "degraded", message: String(error?.message || error) });
+    }
   }
 
   if (req.method === "POST" && url.pathname === "/v1/generations") {
     try {
       const body = await readJson(req);
-      if (!body.prompt || !body.mode) {
-        return json(res, 400, { error: "prompt and mode are required" });
-      }
-
+      if (!body.prompt || !body.mode) return json(res, 400, { error: "prompt and mode are required" });
       const rightsError = validateRights(body);
       if (rightsError) return json(res, 422, { error: rightsError });
 
-      const now = new Date().toISOString();
       const id = randomUUID();
       const request = {
         ...body,
@@ -92,31 +85,29 @@ const server = http.createServer(async (req, res) => {
         userId: body.userId || "local-dev",
         candidateCount: Math.min(Math.max(Number(body.candidateCount || 2), 1), 8),
         outputFormat: body.outputFormat || "wav",
-        masterTuningHz: body.masterTuningHz || 432,
+        masterTuningHz: Number(body.masterTuningHz || 432),
       };
-      const job = {
-        id,
-        status: "queued",
-        createdAt: now,
-        updatedAt: now,
-        provider: null,
-        providerTaskId: null,
-        model: null,
-        artifacts: [],
-        request,
-      };
-      jobs.set(id, job);
-      return json(res, 202, serialize(job));
+      const job = await createJob({ id, request });
+      return json(res, 202, job);
     } catch (error) {
-      return json(res, 400, { error: "invalid_json", message: String(error?.message || error) });
+      return json(res, 500, { error: "generation_create_failed", message: String(error?.message || error) });
     }
+  }
+
+  if (req.method === "GET" && url.pathname === "/v1/generations") {
+    const items = await listJobs({
+      userId: url.searchParams.get("userId") || undefined,
+      limit: url.searchParams.get("limit") || 25,
+      offset: url.searchParams.get("offset") || 0,
+    });
+    return json(res, 200, { items });
   }
 
   const generationMatch = url.pathname.match(/^\/v1\/generations\/([^/]+)$/);
   if (req.method === "GET" && generationMatch) {
-    const job = jobs.get(generationMatch[1]);
+    const job = await getJob(generationMatch[1]);
     if (!job) return json(res, 404, { error: "generation_not_found" });
-    return json(res, 200, serialize(job));
+    return json(res, 200, job);
   }
 
   if (url.pathname.startsWith("/v1/internal/") && !isInternal(req)) {
@@ -124,60 +115,50 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && url.pathname === "/v1/internal/jobs/next") {
-    const job = [...jobs.values()]
-      .filter((candidate) => candidate.status === "queued")
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-    if (!job) return json(res, 204, {});
-    updateJob(job, { status: "running" });
-    return json(res, 200, serialize(job));
+    const job = await claimNextJob();
+    if (!job) {
+      res.writeHead(204, headers());
+      return res.end();
+    }
+    return json(res, 200, job);
   }
 
   const providerMatch = url.pathname.match(/^\/v1\/internal\/jobs\/([^/]+)\/provider$/);
   if (req.method === "POST" && providerMatch) {
-    const job = jobs.get(providerMatch[1]);
-    if (!job) return json(res, 404, { error: "generation_not_found" });
     const body = await readJson(req);
-    updateJob(job, {
-      provider: body.provider || job.provider,
-      providerTaskId: body.providerTaskId || job.providerTaskId,
-      model: body.model || job.model,
-    });
-    return json(res, 200, serialize(job));
+    const job = await setProvider(providerMatch[1], body);
+    if (!job) return json(res, 404, { error: "generation_not_found" });
+    return json(res, 200, job);
   }
 
   const completeMatch = url.pathname.match(/^\/v1\/internal\/jobs\/([^/]+)\/complete$/);
   if (req.method === "POST" && completeMatch) {
-    const job = jobs.get(completeMatch[1]);
-    if (!job) return json(res, 404, { error: "generation_not_found" });
     const body = await readJson(req);
-    updateJob(job, {
-      status: "succeeded",
-      provider: body.provider || job.provider,
-      model: body.model || job.model,
-      artifacts: Array.isArray(body.artifacts) ? body.artifacts : [],
-      error: undefined,
-    });
-    return json(res, 200, serialize(job));
+    const job = await completeJob(completeMatch[1], body);
+    if (!job) return json(res, 404, { error: "generation_not_found" });
+    return json(res, 200, job);
   }
 
   const failMatch = url.pathname.match(/^\/v1\/internal\/jobs\/([^/]+)\/fail$/);
   if (req.method === "POST" && failMatch) {
-    const job = jobs.get(failMatch[1]);
-    if (!job) return json(res, 404, { error: "generation_not_found" });
     const body = await readJson(req);
-    updateJob(job, {
-      status: "failed",
-      error: {
-        code: body.code || "generation_failed",
-        message: body.message || "Generation failed.",
-      },
-    });
-    return json(res, 200, serialize(job));
+    const job = await failJob(failMatch[1], body);
+    if (!job) return json(res, 404, { error: "generation_not_found" });
+    return json(res, 200, job);
   }
 
   return json(res, 404, { error: "not_found" });
 });
 
-server.listen(port, () => {
-  console.log(`generation-api listening on :${port}`);
-});
+await initStore();
+server.listen(port, () => console.log(`generation-api listening on :${port} with durable Postgres/Redis persistence`));
+
+async function shutdown(signal) {
+  console.log(`[generation-api] ${signal}; shutting down`);
+  server.close(async () => {
+    await closeStore();
+    process.exit(0);
+  });
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
