@@ -32,6 +32,16 @@ function getProvider() {
   throw new Error(`Unsupported MODEL_PROVIDER: ${providerName}`);
 }
 
+function normalizeInferenceBody(body) {
+  if (body?.engine === "AMUSE" && body?.modelIdentity === "ARIA-1") {
+    return {
+      ...body,
+      providerPolicy: undefined,
+    };
+  }
+  return body;
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/health") {
     return json(res, 200, {
@@ -39,6 +49,7 @@ const server = http.createServer(async (req, res) => {
       status: "ok",
       provider: providerName,
       runtimeConfigured: Boolean(runtimeUrl),
+      internalArchitecture: { modelIdentity: "ARIA-1", engine: "AMUSE" },
     });
   }
 
@@ -71,11 +82,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const body = await readJson(req);
+      const rawBody = await readJson(req);
+      const body = normalizeInferenceBody(rawBody);
       if (!body.prompt || !body.mode) return json(res, 400, { error: "prompt and mode are required" });
       const provider = getProvider();
       const result = await provider.submit(body);
-      return json(res, 202, result);
+      return json(res, 202, {
+        ...result,
+        architecture: rawBody?.engine === "AMUSE" ? { modelIdentity: "ARIA-1", engine: "AMUSE" } : undefined,
+      });
     } catch (error) {
       return json(res, 502, { error: "provider_submit_failed", message: String(error?.message || error) });
     }
@@ -100,5 +115,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`model-gateway listening on :${port} using ${providerName}`);
+  console.log(`model-gateway listening on :${port} using ${providerName} behind ARIA-1/AMUSE`);
 });
