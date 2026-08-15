@@ -1,0 +1,38 @@
+{
+  "id": "ace-step-1.5",
+  "role": "music-generation-runtime",
+  "upstream": {
+    "repository": "https://github.com/ace-step/ACE-Step-1.5",
+    "license": "MIT"
+  },
+  "runtime": {
+    "protocol": "http",
+    "defaultPort": 8001,
+    "submitEndpoint": "/release_task",
+    "statusEndpoint": "/query_result",
+    "modelsEndpoint": "/v1/models",
+    "audioEndpoint": "/v1/audio"
+  },
+  "allatyme": {
+    "providerKey": "ace-step",
+    "gateway": "services/model-gateway",
+    "defaultModel": "acestep-v15-xl-turbo",
+    "weightsStoredInRepository": false,
+    "referenceAudioRequiresRightsAttestation": true,
+    "sourceAudioRequiresRightsAttestation": true
+  },
+  "supportedModes": [
+    "full-song",
+    "instrumental",
+    "extend",
+    "repaint",
+    "cover",
+    "add-layer",
+    "stems"
+  ],
+  "notes": [
+    "This manifest describes an external/local model runtime; it does not vendor model weights.",
+    "Advanced source-audio modes require the trusted media layer to resolve authorized assets to runtime-accessible paths.",
+    "Generated audio must pass through ALLATYME audio processing and media ingestion before production publication."
+  ]
+}
