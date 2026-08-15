@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#020617">
+  <title>ALLATYME Music Generator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">ALLATYME</div>
+        <div class="eyebrow">Music Creation Platform · Runtime V0.1</div>
+      </div>
+      <div id="apiStatus" class="status-pill neutral">Checking runtime…</div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="kicker">Create → Generate → Refine → Release</p>
+        <h1>Build the song from your own creative direction.</h1>
+        <p class="lede">Write the concept, lyrics and production direction. ALLATYME sends the job through its own generation pipeline and returns the generated masters when the configured model runtime completes.</p>
+      </div>
+      <div class="hero-metrics">
+        <div><span>Engine</span><strong id="engineName">ACE-Step 1.5</strong></div>
+        <div><span>Default tuning</span><strong>432 Hz</strong></div>
+        <div><span>Candidates</span><strong>1–8</strong></div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <form id="generatorForm" class="panel form-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Generation brief</p>
+            <h2>New song</h2>
+          </div>
+          <button id="generateButton" class="primary" type="submit">Generate song</button>
+        </div>
+
+        <div class="grid two">
+          <label>Song title
+            <input name="title" placeholder="Untitled song">
+          </label>
+          <label>Artist / registry ID
+            <input name="artistId" placeholder="Optional artist identifier">
+          </label>
+        </div>
+
+        <label>Creative direction <span class="required">Required</span>
+          <textarea name="prompt" required rows="5" placeholder="Describe the sound, instrumentation, energy, vocal character, arrangement, and emotional direction."></textarea>
+        </label>
+
+        <label>Lyrics
+          <textarea name="lyrics" rows="12" placeholder="[Intro]&#10;...&#10;&#10;[Verse 1]&#10;...&#10;&#10;[Hook]&#10;..."></textarea>
+        </label>
+
+        <div class="grid three">
+          <label>Mode
+            <select name="mode">
+              <option value="full-song">Full song</option>
+              <option value="instrumental">Instrumental</option>
+              <option value="extend">Extend / complete</option>
+              <option value="repaint">Repaint</option>
+              <option value="cover">Cover</option>
+              <option value="add-layer">Add layer</option>
+              <option value="stems">Stem extraction</option>
+            </select>
+          </label>
+          <label>Genre
+            <input name="genre" placeholder="Amapiano">
+          </label>
+          <label>Subgenre
+            <input name="subgenre" placeholder="Afrohouse">
+          </label>
+        </div>
+
+        <div class="grid three">
+          <label>Mood
+            <input name="mood" placeholder="hopeful, cinematic, warm">
+          </label>
+          <label>Language
+            <input name="language" value="en" placeholder="en">
+          </label>
+          <label>BPM
+            <input name="bpm" type="number" min="30" max="300" placeholder="112">
+          </label>
+        </div>
+
+        <div class="grid four">
+          <label>Key
+            <input name="key" placeholder="C Major">
+          </label>
+          <label>Time signature
+            <select name="timeSignature">
+              <option value="4">4/4</option>
+              <option value="3">3/4</option>
+              <option value="2">2/4</option>
+              <option value="6">6/8</option>
+            </select>
+          </label>
+          <label>Duration (seconds)
+            <input name="durationSeconds" type="number" min="10" max="600" value="180">
+          </label>
+          <label>Candidates
+            <input name="candidateCount" type="number" min="1" max="8" value="2">
+          </label>
+        </div>
+
+        <div class="grid three">
+          <label>Output format
+            <select name="outputFormat">
+              <option value="wav">WAV</option>
+              <option value="flac">FLAC</option>
+              <option value="mp3">MP3</option>
+              <option value="opus">Opus</option>
+              <option value="aac">AAC</option>
+            </select>
+          </label>
+          <label>Master reference
+            <select name="masterTuningHz">
+              <option value="432">432 Hz — ALLATYME primary</option>
+              <option value="440">440 Hz — compatibility</option>
+            </select>
+          </label>
+          <label>Model override
+            <input name="model" placeholder="Use runtime default">
+          </label>
+        </div>
+
+        <label class="check-row">
+          <input name="thinking" type="checkbox" checked>
+          <span><strong>Enhanced planning</strong><small>Allow the configured music model's planning layer to expand the musical brief.</small></span>
+        </label>
+
+        <fieldset class="rights-box">
+          <legend>Rights attestation</legend>
+          <label class="check-row"><input name="ownsPromptContent" type="checkbox" required><span>I own or am authorized to use the creative direction supplied in this request.</span></label>
+          <label class="check-row"><input name="ownsLyrics" type="checkbox"><span>I own or am authorized to use the lyrics supplied in this request.</span></label>
+          <p class="fineprint">Reference/source audio is disabled in this first public form. It will only be enabled through the authenticated media layer with explicit authorization records.</p>
+        </fieldset>
+      </form>
+
+      <aside class="panel results-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Generation monitor</p>
+            <h2>Current job</h2>
+          </div>
+          <span id="jobStatus" class="status-pill neutral">Idle</span>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <div class="wave-icon">≋</div>
+          <h3>No generation running</h3>
+          <p>Submit a song brief. The worker will dispatch it to the configured model runtime and this panel will update automatically.</p>
+        </div>
+
+        <div id="jobDetails" class="job-details hidden" aria-live="polite">
+          <dl>
+            <div><dt>Job ID</dt><dd id="jobId">—</dd></div>
+            <div><dt>Provider</dt><dd id="jobProvider">—</dd></div>
+            <div><dt>Model</dt><dd id="jobModel">—</dd></div>
+            <div><dt>Updated</dt><dd id="jobUpdated">—</dd></div>
+          </dl>
+          <div id="jobError" class="error-box hidden"></div>
+          <div id="artifacts" class="artifacts"></div>
+        </div>
+      </aside>
+    </section>
+
+    <footer>
+      <strong>ALLATYME</strong>
+      <span>Human-directed music creation · model-runtime independent · rights-aware generation</span>
+    </footer>
+  </main>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
