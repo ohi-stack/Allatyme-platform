@@ -1,0 +1,13 @@
+{
+  "name": "allatyme-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ALLATYME platform monorepo for music creation, artist operations, catalog workflows, and media infrastructure.",
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present run dev",
+    "build": "pnpm -r --if-present run build",
+    "test": "pnpm -r --if-present run test",
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck"
+  }
+}
