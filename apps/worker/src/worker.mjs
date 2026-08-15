@@ -131,13 +131,13 @@ async function processJob(job) {
         await completeJob(job.id, {
           model: "ARIA-1",
           engine: "AMUSE",
-          product: "ALLATYME AURA",
+          product: "ALLAWAVE",
           provider: result.provider || dispatchResult.provider,
           providerInternal: true,
           runtimeModel: dispatchResult.model,
           artifacts: finalized,
         });
-        console.log(`[worker] completed ${job.id} through ARIA-1/AMUSE with ${finalized.length} stored artifact(s)`);
+        console.log(`[worker] completed ${job.id} through ALLAWAVE/ARIA-1/AMUSE with ${finalized.length} stored artifact(s)`);
         return;
       }
       if (result.status === "failed") throw new Error(result.error?.message || "AMUSE provider generation failed.");
