@@ -1,15 +1,15 @@
 export const ALLATYME_GENERATION_ARCHITECTURE = {
-  product: "ALLATYME AURA",
+  product: "ALLAWAVE",
   foundationModel: "ARIA-1",
   synthesisEngine: "AMUSE",
 } as const;
 
-export type AuraSurface = "web" | "admin" | "api" | "worker";
+export type AllawaveSurface = "web" | "admin" | "api" | "worker";
 
-export interface AuraGenerationIntent {
+export interface AllawaveGenerationIntent {
   requestId: string;
   userId: string;
-  surface: AuraSurface;
+  surface: AllawaveSurface;
   artistId?: string;
   title?: string;
   lyrics?: string;
@@ -41,7 +41,7 @@ export interface AriaPlan {
   requestId: string;
   normalizedPrompt: string;
   normalizedLyrics?: string;
-  mode: AuraGenerationIntent["mode"];
+  mode: AllawaveGenerationIntent["mode"];
   metadata: {
     artistId?: string;
     language: string;
@@ -53,14 +53,14 @@ export interface AriaPlan {
     timeSignature?: "2" | "3" | "4" | "6";
     durationSeconds?: number;
     candidateCount: number;
-    outputFormat: NonNullable<AuraGenerationIntent["outputFormat"]>;
+    outputFormat: NonNullable<AllawaveGenerationIntent["outputFormat"]>;
     masterTuningHz: 432 | 440;
   };
   assets: {
     referenceAssetId?: string;
     sourceAssetId?: string;
   };
-  rights: AuraGenerationIntent["rights"];
+  rights: AllawaveGenerationIntent["rights"];
   providerPolicy: {
     preferredProvider: "ace-step-1.5";
     fallbackProviders: Array<"yue" | "diffrhythm">;
@@ -76,7 +76,7 @@ export interface AmuseDispatch {
   payload: {
     prompt: string;
     lyrics?: string;
-    mode: AuraGenerationIntent["mode"];
+    mode: AllawaveGenerationIntent["mode"];
     language: string;
     genre?: string;
     subgenre?: string;
@@ -86,19 +86,19 @@ export interface AmuseDispatch {
     timeSignature?: "2" | "3" | "4" | "6";
     durationSeconds?: number;
     candidateCount: number;
-    outputFormat: NonNullable<AuraGenerationIntent["outputFormat"]>;
+    outputFormat: NonNullable<AllawaveGenerationIntent["outputFormat"]>;
     masterTuningHz: 432 | 440;
     referenceAssetId?: string;
     sourceAssetId?: string;
-    rights: AuraGenerationIntent["rights"];
+    rights: AllawaveGenerationIntent["rights"];
   };
 }
 
-export function buildAriaPlan(intent: AuraGenerationIntent): AriaPlan {
+export function buildAriaPlan(intent: AllawaveGenerationIntent): AriaPlan {
   const prompt = intent.prompt?.trim();
-  if (!prompt) throw new Error("ALLATYME AURA requires a generation prompt.");
+  if (!prompt) throw new Error("ALLAWAVE requires a generation prompt.");
   if (!intent.rights?.ownsPromptContent) {
-    throw new Error("ALLATYME AURA requires rights attestation for prompt content.");
+    throw new Error("ALLAWAVE requires rights attestation for prompt content.");
   }
   if (intent.lyrics?.trim() && intent.rights.ownsLyrics !== true) {
     throw new Error("ARIA-1 requires explicit ownership or authorization for supplied lyrics.");
