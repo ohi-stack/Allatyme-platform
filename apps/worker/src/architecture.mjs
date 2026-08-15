@@ -1,12 +1,12 @@
 const ARCHITECTURE = Object.freeze({
-  product: "ALLATYME AURA",
+  product: "ALLAWAVE",
   foundationModel: "ARIA-1",
   synthesisEngine: "AMUSE",
 });
 
 export function buildAriaPlan(request) {
   const prompt = request?.prompt?.trim();
-  if (!prompt) throw new Error("ALLATYME AURA requires a generation prompt.");
+  if (!prompt) throw new Error("ALLAWAVE requires a generation prompt.");
   if (!request?.rights?.ownsPromptContent) throw new Error("Prompt-content rights attestation is required.");
   if (request.lyrics?.trim() && request.rights?.ownsLyrics !== true) {
     throw new Error("Lyrics rights attestation is required.");
@@ -75,5 +75,5 @@ export function buildAmuseDispatch(plan) {
 }
 
 export function publicGenerationIdentity() {
-  return { product: "ALLATYME AURA", model: "ARIA-1", engine: "AMUSE" };
+  return { product: "ALLAWAVE", model: "ARIA-1", engine: "AMUSE" };
 }
