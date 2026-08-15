@@ -3,7 +3,8 @@
   "role": "music-generation-runtime",
   "upstream": {
     "repository": "https://github.com/ace-step/ACE-Step-1.5",
-    "license": "MIT"
+    "softwareRepositoryLicense": "MIT",
+    "modelWeightTerms": "verify-at-deployment"
   },
   "runtime": {
     "protocol": "http",
@@ -32,6 +33,7 @@
   ],
   "notes": [
     "This manifest describes an external/local model runtime; it does not vendor model weights.",
+    "The upstream GitHub software repository is MIT licensed. Model/checkpoint terms must be verified separately for the exact weights used at deployment.",
     "Advanced source-audio modes require the trusted media layer to resolve authorized assets to runtime-accessible paths.",
     "Generated audio must pass through ALLATYME audio processing and media ingestion before production publication."
   ]
