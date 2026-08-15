@@ -1,3 +1,5 @@
+import { buildAriaPlan, buildAmuseDispatch, publicGenerationIdentity } from "./architecture.mjs";
+
 const generationApiUrl = (process.env.GENERATION_API_URL || "http://localhost:4100").replace(/\/$/, "");
 const modelGatewayUrl = (process.env.MODEL_GATEWAY_URL || "http://localhost:4200").replace(/\/$/, "");
 const audioProcessingUrl = (process.env.AUDIO_PROCESSING_URL || "http://localhost:4300").replace(/\/$/, "");
@@ -103,10 +105,18 @@ async function finalizeArtifact(job, artifact, index) {
 }
 
 async function processJob(job) {
-  console.log(`[worker] dispatching ${job.id}`);
+  const identity = publicGenerationIdentity();
+  console.log(`[worker] ${identity.product} -> ${identity.model} -> ${identity.engine}; dispatching ${job.id}`);
   try {
-    const dispatchResult = await dispatch(job.request);
-    await recordProvider(job.id, dispatchResult);
+    const ariaPlan = buildAriaPlan(job.request);
+    const amuseDispatch = buildAmuseDispatch(ariaPlan);
+    const dispatchResult = await dispatch(amuseDispatch);
+
+    await recordProvider(job.id, {
+      ...dispatchResult,
+      architecture: identity,
+      providerInternal: true,
+    });
 
     const started = Date.now();
     while (Date.now() - started < providerTimeoutMs) {
@@ -116,20 +126,24 @@ async function processJob(job) {
         for (const [index, artifact] of (result.artifacts || []).entries()) {
           finalized.push(await finalizeArtifact(job, artifact, index));
         }
-        if (!finalized.length) throw new Error("Provider succeeded but returned no audio artifacts.");
+        if (!finalized.length) throw new Error("AMUSE provider succeeded but returned no audio artifacts.");
 
         await completeJob(job.id, {
+          model: "ARIA-1",
+          engine: "AMUSE",
+          product: "ALLATYME AURA",
           provider: result.provider || dispatchResult.provider,
-          model: dispatchResult.model,
+          providerInternal: true,
+          runtimeModel: dispatchResult.model,
           artifacts: finalized,
         });
-        console.log(`[worker] completed ${job.id} with ${finalized.length} stored artifact(s)`);
+        console.log(`[worker] completed ${job.id} through ARIA-1/AMUSE with ${finalized.length} stored artifact(s)`);
         return;
       }
-      if (result.status === "failed") throw new Error(result.error?.message || "Provider generation failed.");
+      if (result.status === "failed") throw new Error(result.error?.message || "AMUSE provider generation failed.");
       await sleep(providerPollMs);
     }
-    throw new Error(`Provider timed out after ${providerTimeoutMs}ms.`);
+    throw new Error(`AMUSE provider timed out after ${providerTimeoutMs}ms.`);
   } catch (error) {
     console.error(`[worker] failed ${job.id}:`, error);
     await failJob(job.id, error);
@@ -137,7 +151,8 @@ async function processJob(job) {
 }
 
 async function main() {
-  console.log(`[worker] ALLATYME worker online; queue=${generationApiUrl}; gateway=${modelGatewayUrl}`);
+  const identity = publicGenerationIdentity();
+  console.log(`[worker] ${identity.product} worker online; model=${identity.model}; engine=${identity.engine}; queue=${generationApiUrl}; gateway=${modelGatewayUrl}`);
   for (;;) {
     try {
       const job = await nextJob();
