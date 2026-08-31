@@ -1,13 +1,17 @@
-# ALLATYME Platform
+# ALLATYME™ Platform — ALLAFLUX™
 
-Core application repository for the ALLATYME music ecosystem, including the music-creation platform, artist infrastructure, generation orchestration, catalog workflows, media tools, administration, background workers, APIs, and user-facing applications.
+**ALLAFLUX™ by ALLATYME™** is the product direction for the ALLATYME music-creation, artist, catalog, media, discovery, commerce, community, and analytics platform.
 
-## Executable Generation Path
+## What ALLAFLUX Is
+
+ALLAFLUX turns the existing ALLATYME music stack into one artist-centered platform. It separates the creative application and catalog system from third-party inference providers while allowing approved model runtimes to plug into the model gateway.
+
+## Current Executable Generation Path
 
 ```text
 apps/web
   → services/generation-api
-  → Postgres + Redis durable queue
+  → PostgreSQL + Redis
   → apps/worker
   → services/model-gateway
   → ACE-Step 1.5 runtime
@@ -17,50 +21,66 @@ apps/web
   → durable generation history
 ```
 
-Postgres is the source of truth for generation state and history. Redis is the queue accelerator. Processed audio is copied into ALLATYME-controlled S3-compatible object storage with checksum and processing metadata.
+PostgreSQL remains the source of truth for generation state/history. Redis is the queue accelerator. Processed audio is stored with checksums and processing metadata.
+
+## ALLAFLUX Product Layers
+
+- **Create** — controlled music-generation workflows.
+- **Artist** — canonical artist identity and sound profiles.
+- **Catalog** — tracks, releases, albums, playlists, genres, credits, and metadata.
+- **Flux** — discovery, search, trending, recommendations, and audience movement.
+- **Media** — audio, video, artwork, visualizers, and publishing assets.
+- **Commerce** — integration with the ALLATYME/WooCommerce commerce layer.
+- **Community** — follows, favorites, libraries, memberships, and rewards.
+- **Analytics** — listening, engagement, conversion, and catalog intelligence.
+- **Provenance** — checksums, model/provider metadata, processing history, and rights attestations.
 
 ## Repository Architecture
 
 ```text
 allatyme-platform/
 ├── apps/
-│   ├── web/                 # ALLATYME application
-│   ├── admin/               # AMG administration
-│   └── worker/              # generation/background jobs
-│
+│   ├── web/                 # Creator/user application
+│   ├── admin/               # Platform administration
+│   └── worker/              # Generation/background jobs
 ├── packages/
-│   ├── ui/                  # shared ALLATYME components
-│   ├── artists/             # AMG artist identities/sound profiles
-│   ├── music/               # tracks, albums, playlists
-│   ├── generation/          # music-generation orchestration
-│   ├── audio/               # audio processing contracts
+│   ├── ui/
+│   ├── artists/             # Canonical artist/sound identity
+│   ├── music/               # Catalog domain
+│   ├── generation/          # Generation contracts
+│   ├── audio/               # Audio contracts
 │   ├── auth/
 │   └── database/
-│
 ├── services/
 │   ├── generation-api/
 │   ├── model-gateway/
 │   ├── audio-processing/
 │   └── media-ingestion/
-│
-├── models/
-│   └── README.md            # model architecture/config only
-│
+├── models/                  # Manifests/config only; never model weights
 ├── docs/
 ├── infrastructure/
 ├── scripts/
-├── tests/
-└── README.md
+└── tests/
 ```
 
-## Architecture Rule
+## Canonical Documentation
 
-Large model weights, generated audio binaries, secrets, credentials, production databases, and private training corpora must not be committed to this repository. The `models/` directory stores architecture, configuration, model manifests, integration contracts, and documentation only.
+- `docs/ALLAFLUX_ARCHITECTURE.md`
+- `docs/ALLAFLUX_ARTIST_IDENTITY.md`
+- `docs/ALLAFLUX_GENERATION_PIPELINE.md`
+- `docs/ALLAFLUX_DISCOVERY.md`
+- `docs/ALLAFLUX_ROADMAP.md`
+- `docs/MUSIC_GENERATION_RUNTIME.md`
+- `docs/PRODUCTION_PIPELINE.md`
 
-## Local Infrastructure
+## Audio Integrity
 
-`docker compose up -d` starts PostgreSQL, Redis, and MinIO. Apply `packages/database/schema.sql` before starting the generation API. ACE-Step runs separately on the configured GPU/local model runtime.
+The 432 Hz delivery path is an actual processing state. The system must never label audio as 432 Hz unless the configured processing operation succeeds. If required FFmpeg capabilities are unavailable, processing fails explicitly.
 
-The 432 Hz delivery path requires FFmpeg with the `rubberband` filter. If that capability is missing, processing fails explicitly rather than mislabeling audio.
+## Security & IP Boundary
 
-See `docs/PRODUCTION_PIPELINE.md` and `docs/MUSIC_GENERATION_RUNTIME.md` for the current implementation boundary and remaining production gates.
+Do not commit model weights, secrets, credentials, private training corpora, production databases, or private media binaries. Keep proprietary implementation and sensitive business data protected according to deployment requirements.
+
+## Implementation Status
+
+The repository contains a working foundation for the generation-oriented architecture. The ALLAFLUX documents define the larger product target. Features must be marked implemented only after their code path, persistence, integration, and tests are actually present.
