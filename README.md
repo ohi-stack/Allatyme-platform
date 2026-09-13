@@ -1,10 +1,17 @@
 # ALLATYME™ Platform — ALLAFLUX™
 
-**ALLAFLUX™ by ALLATYME™** is the product direction for the ALLATYME music-creation, artist, catalog, media, discovery, commerce, community, and analytics platform.
+**ALLAFLUX™ by ALLATYME™** is the music creation, studio, social publishing, artist catalog, and creator platform for `https://flux.allatyme.com`.
+
+**Permanent ODIN:** `ODIN-P-AE1001`  
+**Canonical node:** `https://flux.allatyme.com`  
+**Registry key:** `allaflux`  
+**Record date:** September 12, 2026
 
 ## What ALLAFLUX Is
 
 ALLAFLUX turns the existing ALLATYME music stack into one artist-centered platform. It separates the creative application and catalog system from third-party inference providers while allowing approved model runtimes to plug into the model gateway.
+
+The permanent platform identifier is **ODIN-P-AE1001**. ALLAFLUX-specific services, manifests, deployment records, and integration documents should retain that parent platform reference unless a component receives its own separately registered identifier.
 
 ## Current Executable Generation Path
 
@@ -26,10 +33,12 @@ PostgreSQL remains the source of truth for generation state/history. Redis is th
 ## ALLAFLUX Product Layers
 
 - **Create** — controlled music-generation workflows.
+- **Studio** — browser-based recording, editing, arrangement, and production workflows.
 - **Artist** — canonical artist identity and sound profiles.
 - **Catalog** — tracks, releases, albums, playlists, genres, credits, and metadata.
 - **Flux** — discovery, search, trending, recommendations, and audience movement.
 - **Media** — audio, video, artwork, visualizers, and publishing assets.
+- **Social Publishing** — public/private/unlisted releases, follows, engagement, and creator publishing.
 - **Commerce** — integration with the ALLATYME/WooCommerce commerce layer.
 - **Community** — follows, favorites, libraries, memberships, and rewards.
 - **Analytics** — listening, engagement, conversion, and catalog intelligence.
@@ -65,6 +74,7 @@ allatyme-platform/
 
 ## Canonical Documentation
 
+- `docs/ALLAFLUX_IDENTITY.md`
 - `docs/ALLAFLUX_ARCHITECTURE.md`
 - `docs/ALLAFLUX_ARTIST_IDENTITY.md`
 - `docs/ALLAFLUX_GENERATION_PIPELINE.md`
