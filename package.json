@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "description": "ALLATYME platform monorepo for music creation, artist operations, catalog workflows, and media infrastructure.",
+  "allaflux": {
+    "canonicalName": "ALLAFLUX™ by ALLATYME",
+    "odin": "ODIN-P-AE1001",
+    "registryKey": "allaflux",
+    "canonicalNode": "https://flux.allatyme.com",
+    "recordDate": "2026-09-12"
+  },
   "scripts": {
     "dev": "pnpm -r --parallel --if-present run dev",
     "build": "pnpm -r --if-present run build",
