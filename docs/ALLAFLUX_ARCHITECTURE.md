@@ -2,11 +2,14 @@
 
 **Brand:** ALLAFLUX™ by ALLATYME™  
 **Permanent ODIN:** `ODIN-P-AE1001`  
-**Canonical Node:** `https://flux.allatyme.com`  
-**Repository:** `ohi-stack/Allatyme-platform`  
+**Canonical Web Node:** `https://flux.allatyme.com`  
+**Canonical API Node:** `https://api.allatyme.com`  
+**Canonical Repository:** `ohi-stack/allaflux-platform`  
+**Source/Provenance Repository:** `ohi-stack/Allatyme-platform`  
 **Status:** Canonical platform direction  
 **Originally dated:** 2026-08-31  
-**Identity update:** 2026-09-12
+**Identity update:** 2026-09-12  
+**Topology update:** 2026-09-19
 
 ## 1. Purpose
 
@@ -37,36 +40,60 @@ ALLATYME™
    │
    └── ALLAFLUX™ — ODIN-P-AE1001
         │
-        ├── Web / Creator Experience
-        ├── Browser Studio
-        ├── Artist Identity System
-        ├── Music Catalog
-        ├── Generation API
-        ├── Generation Worker
-        ├── Model Gateway
-        │     └── ACE-Step 1.5 / future approved runtimes
-        ├── Audio Processing
-        ├── Media Ingestion
-        ├── Social Publishing
-        ├── Discovery / Flux Engine
-        ├── Commerce Integration
-        ├── Membership & Rewards
-        ├── Analytics
-        └── Provenance / Rights Metadata
-
-Infrastructure:
-PostgreSQL → source of truth
-Redis → durable queue accelerator
-MinIO/S3 → controlled media object storage
-FFmpeg → audio processing
+        ├── https://flux.allatyme.com
+        │     ├── Web / Creator Experience
+        │     ├── Browser Studio
+        │     ├── Artist / Catalog / Discovery UI
+        │     └── Account / Admin UI
+        │
+        └── https://api.allatyme.com
+              └── Public Backend Gateway
+                    ├── Application API
+                    ├── Generation/audio routing
+                    ├── Billing / Webhooks
+                    ├── Controlled media delivery
+                    └── Private backend network
+                          ├── Generation API
+                          ├── Generation Worker
+                          ├── Model Gateway
+                          │     └── ACE-Step 1.5 / future approved runtimes
+                          ├── Audio Processing
+                          ├── Media Ingestion
+                          ├── PostgreSQL
+                          ├── Redis
+                          └── MinIO/S3-compatible storage
 ```
+
+FFmpeg remains the deterministic audio-processing layer where configured.
 
 ## 4. Canonical Node & Service Topology
 
-- `https://flux.allatyme.com/` — public ALLAFLUX application
-- `https://api.flux.allatyme.com/` — application/API layer
-- `inference.flux.allatyme.com` — authenticated model/inference gateway
-- `media.flux.allatyme.com` — media delivery origin when enabled
+### Public nodes
+
+- `https://flux.allatyme.com/` — public ALLAFLUX application.
+- `https://api.allatyme.com/` — canonical public backend gateway.
+
+The API gateway fronts backend capabilities while allowing the underlying services to remain independently deployable on private/container networking.
+
+### Private/internal services
+
+The following do not require public hostnames under the current architecture:
+
+- generation API;
+- generation worker;
+- model gateway;
+- model/GPU runtime;
+- audio processing;
+- media ingestion;
+- PostgreSQL;
+- Redis;
+- object-storage control plane.
+
+The existing Sites worker may continue to call audio-engine compatibility routes through `api.allatyme.com`, including `/capabilities`, `/jobs`, `/jobs/{id}`, `/jobs/{id}/audio`, and `/jobs/{id}/stems`.
+
+Media delivery may use the API gateway or signed object-storage URLs. A separate public media hostname is not currently required.
+
+`audioflux.allatyme.com` is reserved for a future dedicated audio/GPU node if workload isolation or scaling later justifies a third public deployment. It is not active in the current topology.
 
 Application routes include `/create`, `/studio`, `/library`, `/discover`, `/upload`, `/record`, `/voices`, `/artists`, `/plans`, `/account`, and `/admin` as the target platform map.
 
@@ -83,6 +110,7 @@ Application routes include `/create`, `/studio`, `/library`, `/discover`, `/uplo
 - Public/private/unlisted publishing controls.
 - Rights-attestation capture.
 - Platform identity under `ODIN-P-AE1001`.
+- Public routing policy for `flux.allatyme.com` and `api.allatyme.com`.
 
 ### External systems may provide
 - Model inference runtimes.
@@ -95,9 +123,11 @@ No external provider is the canonical source of ALLAFLUX artist identity, catalo
 
 ## 6. Current Foundation vs Target
 
-The repository already contains the generation-oriented foundation: web application, generation API, worker, model gateway, audio processing, media ingestion, PostgreSQL, Redis, MinIO/S3-compatible storage, artist sound profiles, and an ACE-Step 1.5 runtime contract.
+This source repository contains the generation-oriented foundation: web application, generation API, worker, model gateway, audio processing, media ingestion, PostgreSQL, Redis, MinIO/S3-compatible storage, artist sound profiles, and an ACE-Step 1.5 runtime contract.
 
-The ALLAFLUX specification extends that foundation into the complete product. Items not yet implemented must be treated as roadmap work rather than represented as production functionality.
+The canonical production implementation is now `ohi-stack/allaflux-platform`. When implementation details differ, the canonical repository takes precedence for current ALLAFLUX deployment architecture.
+
+The two-node public topology does not collapse all backend software into one process. It consolidates the public DNS boundary while preserving private service separation internally.
 
 ## 7. Registry Rule
 
@@ -114,3 +144,4 @@ See `docs/ALLAFLUX_IDENTITY.md` for the canonical identity record.
 - Separate WordPress presentation concerns from deterministic application services.
 - Keep proprietary source and internal business logic private where appropriate.
 - Preserve `ODIN-P-AE1001` anywhere ALLAFLUX platform identity is represented.
+- Do not create additional public service hostnames simply to obtain more environment-variable containers.
