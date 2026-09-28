@@ -38,6 +38,18 @@ V5.1.6 preserves these public objects and existing shortcodes/URLs wherever poss
 
 The Artist Record 2.0 import already establishes 70 `amg_artist_record` posts plus matching artist taxonomy terms and stable AMG identifiers. V5.1.6 treats that structure as the canonical identity foundation rather than creating a second artist database.
 
+### 2.1 Executable-source baseline requirement
+
+The canonical GitHub repository currently preserves V4.6.0 documentation and a checksum manifest that references the historical PHP/assets, but those executable files are not present in the checked repository directory. Therefore:
+
+- V5.1.6 may use the documented V4.6.0 contracts and Artist Record 2.0 fixture for design and test preparation;
+- a claim that V5.1.6 is a verified in-place/drop-in upgrade requires the actual current executable Media Engine source or a current installed plugin package to be inspected and tested;
+- if that executable baseline is not available, V5.1.6 must be produced as a clean-room compatibility implementation against the documented contracts and fixtures;
+- a clean-room package must be labeled **staging/release-candidate pending compatibility verification**, not production-certified, until tested against the live/current WordPress installation;
+- missing historical source must never be silently reconstructed and represented as the original source.
+
+This source-baseline rule does not change the V5.1.6 data architecture; it controls the accuracy of compatibility and release claims.
+
 ## 3. Source-of-record boundaries
 
 ### 3.1 Media Engine owns
